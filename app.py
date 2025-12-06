@@ -1,12 +1,33 @@
 import os
 import torch
+import torch.nn as nn
 import joblib
 import numpy as np
 from flask import Flask, request, jsonify
 
+# -----------------------------
+# Add model class
+# -----------------------------
+class DeliveryTimeRegressor(nn.Module):
+    def __init__(self, input_dim=3, hidden_dim=64):
+        super(DeliveryTimeRegressor, self).__init__()
+        self.network = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, 1)
+        )
+
+    def forward(self, x):
+        return self.network(x)
+
+# -----------------------------
+# Flask app
+# -----------------------------
 app = Flask(__name__)
 
-# Load model and scaler
+# Load model & scaler
 model = joblib.load("model.pkl")
 scaler = joblib.load("scaler.pkl")
 
@@ -23,12 +44,10 @@ def predict():
         prep_time = float(data["prep_time"])
         experience = float(data["experience"])
     except:
-        return {"error": "Input fields invalid or missing"}, 400
+        return {"error": "Invalid or missing fields"}, 400
 
     X = np.array([[distance, prep_time, experience]], dtype=np.float32)
-
     X_scaled = scaler.transform(X)
-
     X_tensor = torch.tensor(X_scaled, dtype=torch.float32)
 
     with torch.no_grad():
